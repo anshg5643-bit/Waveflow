@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WaveFlow - hide encrypted data in sound</title>
+  <meta name="theme-color" content="#060a12">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230c1422'/%3E%3Cpath d='M3 16h4l3-9 5 18 4-14 3 5h7' fill='none' stroke='%2338e8d0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<!-- ============================ Sign in ============================ -->
+<div id="login" class="login" hidden>
+  <canvas id="heroWave" aria-hidden="true"></canvas>
+  <div class="login-card">
+    <div class="brand"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#0c1422"/><path d="M3 16h4l3-9 5 18 4-14 3 5h7" fill="none" stroke="#38e8d0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>WaveFlow</span></div>
+    <h1>Hide encrypted data in ordinary sound.</h1>
+    <p class="lead">Encrypt a message with AES-256, then tuck it into the phase of a WAV file. It sounds the same, and only your password brings it back.</p>
+    <div class="signin">
+      <div id="gbtn" class="gbtn"></div>
+      <p id="gnote" class="note" hidden></p>
+      <div class="auth-switch"><button type="button" id="showLoginForm" class="link">Sign in with email</button><span>·</span><button type="button" id="showRegisterForm" class="link">Create an account</button></div>
+      <form id="emailLoginForm" class="auth-form" hidden>
+        <label class="lbl" for="loginEmail">Email</label><input id="loginEmail" type="email" autocomplete="email" required placeholder="you@example.com">
+        <label class="lbl" for="loginPassword">Password</label><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Your password">
+        <button class="btn primary" type="submit">Sign in</button>
+      </form>
+      <form id="registerForm" class="auth-form" hidden>
+        <label class="lbl" for="registerName">Name</label><input id="registerName" type="text" autocomplete="name" maxlength="100" placeholder="Your name">
+        <label class="lbl" for="registerEmail">Email</label><input id="registerEmail" type="email" autocomplete="email" required placeholder="you@example.com">
+        <label class="lbl" for="registerPassword">Password (8+ characters)</label><input id="registerPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Create a password">
+        <button class="btn primary" type="submit">Create account</button>
+      </form>
+      <button id="guestBtn" class="btn ghost" hidden>Try it without signing in</button>
+      <p id="loginErr" class="err" role="alert" hidden></p>
+    </div>
+    <p class="fine">Prototype by team Dig Busters. Not a certified security product.</p>
+  </div>
+</div>
+
+<!-- ============================== App ============================== -->
+<div id="app" class="app" hidden>
+  <aside class="rail">
+    <div class="brand"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#0c1422"/><path d="M3 16h4l3-9 5 18 4-14 3 5h7" fill="none" stroke="#38e8d0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>WaveFlow</span></div>
+    <nav id="nav" aria-label="Main">
+      <button data-view="encode" class="active"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 19h14"/></svg>Hide</button>
+      <button data-view="decode"><svg viewBox="0 0 24 24"><path d="M12 15V3m0 0L8 7m4-4 4 4M5 19h14"/></svg>Reveal</button>
+      <button data-view="analyze"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/></svg>Stealth check</button>
+      <button data-view="history"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v4h4M12 8v4l3 2"/></svg>History</button>
+    </nav>
+    <div class="user">
+      <img id="uAvatar" alt="" hidden>
+      <div class="uinfo"><strong id="uName"></strong><span id="uMail"></span></div>
+      <button id="logoutBtn" class="icon-btn" title="Sign out" aria-label="Sign out"><svg viewBox="0 0 24 24"><path d="M9 4H5v16h4M16 8l4 4-4 4M20 12H9"/></svg></button>
+    </div>
+  </aside>
+
+  <main>
+    <!-- ------------------------------ Hide ------------------------------ -->
+    <section id="view-encode" class="view">
+      <header class="vhead"><h2>Hide a message in audio</h2><p>Encrypt first, then embed in the phase of the sound. Your file stays playable.</p></header>
+      <div class="split">
+        <form id="encForm" class="panel stack" autocomplete="off">
+          <div>
+            <label class="lbl">1. Carrier audio</label>
+            <div id="encDrop" class="drop" tabindex="0" role="button" aria-label="Choose a WAV file">
+              <input type="file" accept=".wav,audio/wav,audio/x-wav" hidden>
+              <div class="drop-empty"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><b>Drop a WAV file here</b><span>or click to browse</span></div>
+              <div class="drop-file" hidden><b class="fname"></b><span class="finfo"></span><canvas class="mini"></canvas></div>
+            </div>
+            <button type="button" id="encSample" class="link">No audio handy? Use a generated sample</button>
+          </div>
+
+          <div>
+            <div class="row between"><label class="lbl">2. What to hide</label>
+              <div class="seg small" id="payloadMode"><button type="button" class="on" data-mode="text">Text</button><button type="button" data-mode="file">File</button></div></div>
+            <textarea id="encMsg" rows="4" maxlength="20000" placeholder="Type the secret message"></textarea>
+            <div id="encFileWrap" hidden>
+              <input type="file" id="encPayload" class="filein">
+              <p class="note">Files up to 5 MB, if the audio has room.</p>
+            </div>
+            <div class="cap"><div class="capbar"><i id="capFill"></i></div><span id="capText" class="note">Choose audio to see how much it can hold.</span></div>
+          </div>
+
+          <div>
+            <label class="lbl" for="encPw">3. Password</label>
+            <div class="pw"><input id="encPw" type="password" minlength="4" placeholder="Used for encryption and hiding positions" required><button type="button" class="icon-btn" data-toggle="encPw" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+          </div>
+
+          <div>
+            <label class="lbl">4. Strength</label>
+            <div class="seg" id="strength" role="radiogroup">
+              <button type="button" data-v="subtle" role="radio"><b>Subtle</b><span>Quietest, least sturdy</span></button>
+              <button type="button" data-v="balanced" class="on" role="radio"><b>Balanced</b><span>Good default</span></button>
+              <button type="button" data-v="robust" role="radio"><b>Robust</b><span>Sturdiest, more noise</span></button>
+            </div>
+          </div>
+
+          <p id="encErr" class="err" role="alert" hidden></p>
+          <button id="encGo" class="btn primary" type="submit">Hide message in audio</button>
+        </form>
+
+        <div id="encOut" class="panel result">
+          <div class="empty"><svg viewBox="0 0 64 24" class="wave-ico"><path d="M0 12h8l4-9 6 18 5-14 4 8 4-3h33" /></svg><h3>Your output will appear here</h3><p>You will see the before and after waveforms, quality numbers, and whether a detector would notice the change.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ----------------------------- Reveal ----------------------------- -->
+    <section id="view-decode" class="view" hidden>
+      <header class="vhead"><h2>Reveal a hidden message</h2><p>Upload a WaveFlow WAV and enter the password it was hidden with.</p></header>
+      <div class="split">
+        <form id="decForm" class="panel stack" autocomplete="off">
+          <div>
+            <label class="lbl">Audio with hidden data</label>
+            <div id="decDrop" class="drop" tabindex="0" role="button" aria-label="Choose a WAV file">
+              <input type="file" accept=".wav,audio/wav,audio/x-wav" hidden>
+              <div class="drop-empty"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><b>Drop a WAV file here</b><span>or click to browse</span></div>
+              <div class="drop-file" hidden><b class="fname"></b><span class="finfo"></span></div>
+            </div>
+          </div>
+          <div>
+            <label class="lbl" for="decPw">Password</label>
+            <div class="pw"><input id="decPw" type="password" placeholder="The password used to hide it" required><button type="button" class="icon-btn" data-toggle="decPw" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+          </div>
+          <p id="decErr" class="err" role="alert" hidden></p>
+          <button id="decGo" class="btn primary" type="submit">Reveal hidden data</button>
+        </form>
+        <div id="decOut" class="panel result"><div class="empty"><svg viewBox="0 0 64 24" class="wave-ico"><path d="M0 12h8l4-9 6 18 5-14 4 8 4-3h33" /></svg><h3>Nothing revealed yet</h3><p>A wrong password and a clean file look the same on purpose, so the app cannot tell an attacker which one it was.</p></div></div>
+      </div>
+    </section>
+
+    <!-- ------------------------- Stealth check -------------------------- -->
+    <section id="view-analyze" class="view" hidden>
+      <header class="vhead"><h2>Stealth check</h2><p>A machine-learning detector looks for the phase pattern WaveFlow leaves behind, the way a defender might.</p></header>
+      <div class="split">
+        <form id="anForm" class="panel stack">
+          <div>
+            <label class="lbl">Audio to inspect</label>
+            <div id="anDrop" class="drop" tabindex="0" role="button" aria-label="Choose a WAV file">
+              <input type="file" accept=".wav,audio/wav,audio/x-wav" hidden>
+              <div class="drop-empty"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><b>Drop a WAV file here</b><span>or click to browse</span></div>
+              <div class="drop-file" hidden><b class="fname"></b><span class="finfo"></span></div>
+            </div>
+            <button type="button" id="anSample" class="link">Try the generated sample (clean audio)</button>
+          </div>
+          <p id="anErr" class="err" role="alert" hidden></p>
+          <button id="anGo" class="btn primary" type="submit">Run stealth check</button>
+          <p class="note">The detector is trained on synthetic music. Treat results on real recordings as a guide, not proof.</p>
+        </form>
+        <div id="anOut" class="panel result"><div class="empty"><svg viewBox="0 0 64 24" class="wave-ico"><path d="M0 12h8l4-9 6 18 5-14 4 8 4-3h33" /></svg><h3>No result yet</h3><p>Check a file you made on the Hide tab, or a clean one, and compare the scores.</p></div></div>
+      </div>
+    </section>
+
+    <!-- ------------------------------ History --------------------------- -->
+    <section id="view-history" class="view" hidden>
+      <header class="vhead"><h2>History</h2><p>Your recent runs. Hidden-audio files you made are kept here so you can download them again.</p></header>
+      <div id="histList" class="panel hist"></div>
+    </section>
+  </main>
+
+  <button id="chatToggle" class="chat-fab" aria-expanded="false" aria-controls="chat"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5Z"/></svg>Ask the assistant</button>
+  <aside id="chat" class="chat" hidden aria-label="WaveFlow assistant">
+    <header><div><strong>WaveFlow assistant</strong><span id="chatModel"></span></div>
+      <div class="row"><button id="chatClear" class="icon-btn" title="Clear conversation" aria-label="Clear conversation"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+      <button id="chatClose" class="icon-btn" title="Close" aria-label="Close assistant"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div></header>
+    <div id="chatOff" class="chat-off" hidden>The assistant is not connected yet. Add <code>GROQ_API_KEY</code> to the <code>.env</code> file and restart the server.</div>
+    <div id="chatLog" class="chat-log" aria-live="polite"></div>
+    <div class="chips" id="chips">
+      <button type="button">How does the hiding work?</button>
+      <button type="button">What payload size is safest?</button>
+      <button type="button">Will MP3 conversion break it?</button>
+    </div>
+    <form id="chatForm" class="chat-in"><textarea id="chatInput" rows="1" maxlength="4000" placeholder="Ask about WaveFlow" aria-label="Message"></textarea><button class="btn primary" type="submit" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M5 12h14m0 0-6-6m6 6-6 6"/></svg></button></form>
+  </aside>
+</div>
+
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="/app.js"></script>
+</body>
+</html>
